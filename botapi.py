@@ -12,23 +12,43 @@ from nlp import WORD_GROUPS
 
 def get_akakce_image(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        proxy_url = f"https://api.allorigins.win/raw?url={url}"
-        
-        r = requests.get(proxy_url, headers=headers, timeout=10)
-        soup = BeautifulSoup(r.text, 'html.parser')
+        headers = {
+            'User-Agent': (
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/124.0.0.0 Safari/537.36'
+            ),
+            'Accept': (
+                'text/html,application/xhtml+xml,application/xml;'
+                'q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+            ),
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Referer': 'https://www.google.com/',
+            'Connection': 'keep-alive',
+            'DNT': '1',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1'
+        }
 
-        # Ana ürün görseli <a class="img_w"> içinde href'te
+        # Proxy yok, doğrudan URL'e istek atılıyor
+        response = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+
         a_tag = soup.find('a', {'class': 'img_w'})
         if a_tag and a_tag.get('href'):
             img_url = a_tag['href']
-            # Eğer link // ile başlıyorsa başına https: ekle
             if img_url.startswith('//'):
                 img_url = 'https:' + img_url
             return img_url
+
     except Exception as e:
         print(f"Görsel çekme hatası: {e}")
     return None
+
 
 
 
