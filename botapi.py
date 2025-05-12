@@ -44,7 +44,7 @@ class PromptInput(BaseModel):
 @app.post("/get-suggestions/")
 async def get_suggestions(data: PromptInput):
     try:
-        command = f'chcp 65001 > NUL & py cli.py --prompt "{data.prompt}"'
+        command = f'python3 cli.py --prompt "{data.prompt}"'
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
 
