@@ -12,33 +12,26 @@ from nlp import WORD_GROUPS
 
 def get_akakce_image(url):
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0',
-            'Referer': 'https://www.google.com'  # Ekstra güvenlik
-        }
-        r = requests.get(url, headers=headers, timeout=10)
-        # 🔍 Gelen yanıtı logla (Render'da erişim var mı görelim)
-        print("🛜 STATUS:", r.status_code)
-        print("🔍 TEXT PREVIEW:", r.text[:500])  # İlk 500 karakter
+        # 📌 ScraperAPI bilgileri
+        api_key = "6685fcd9a419165b33950d243730d8c3"  # 🔑 Buraya kendi API anahtarını yaz
+        scraper_url = f"https://api.scraperapi.com?api_key={api_key}&url={url}"
+
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        r = requests.get(scraper_url, headers=headers, timeout=10)
         soup = BeautifulSoup(r.text, 'html.parser')
 
-        # ✅ 1. En sağlam yöntem: og:image
-        meta_tag = soup.find('meta', {'property': 'og:image'})
-        if meta_tag and meta_tag.get('content'):
-            return meta_tag['content']
-
-        # 🔁 2. Yedek: eski yöntem (a.img_w)
+        # Ana ürün görseli <a class="img_w"> içinde href'te
         a_tag = soup.find('a', {'class': 'img_w'})
         if a_tag and a_tag.get('href'):
             img_url = a_tag['href']
+            # Eğer link // ile başlıyorsa başına https: ekle
             if img_url.startswith('//'):
                 img_url = 'https:' + img_url
             return img_url
-
     except Exception as e:
         print(f"Görsel çekme hatası: {e}")
-
     return None
+
 
 
 app = FastAPI()
