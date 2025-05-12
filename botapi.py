@@ -17,6 +17,9 @@ def get_akakce_image(url):
             'Referer': 'https://www.google.com'  # Ekstra güvenlik
         }
         r = requests.get(url, headers=headers, timeout=10)
+        # 🔍 Gelen yanıtı logla (Render'da erişim var mı görelim)
+        print("🛜 STATUS:", r.status_code)
+        print("🔍 TEXT PREVIEW:", r.text[:500])  # İlk 500 karakter
         soup = BeautifulSoup(r.text, 'html.parser')
 
         # ✅ 1. En sağlam yöntem: og:image
