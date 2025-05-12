@@ -10,38 +10,22 @@ from bs4 import BeautifulSoup
 from fastapi import Query
 from nlp import WORD_GROUPS
 
-import random
-import socks
-
-
-# Örnek proxy listesi yükleyici
-import json
-with open("Free_Proxy_List.json", "r", encoding="utf-8") as f:
-    proxy_list = json.load(f)
-
-def get_random_socks4_proxy():
-    proxy = random.choice(proxy_list)
-    return {
-        'http': f'socks4://{proxy["ip"]}:{proxy["port"]}',
-        'https': f'socks4://{proxy["ip"]}:{proxy["port"]}'
-    }
-
 def get_akakce_image(url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
-        proxies = get_random_socks4_proxy()
-        r = requests.get(url, headers=headers, proxies=proxies, timeout=10)
+        r = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(r.text, 'html.parser')
+        # Ana ürün görseli <a class="img_w"> içinde href'te
         a_tag = soup.find('a', {'class': 'img_w'})
         if a_tag and a_tag.get('href'):
             img_url = a_tag['href']
+            # Eğer link // ile başlıyorsa başına https: ekle
             if img_url.startswith('//'):
                 img_url = 'https:' + img_url
             return img_url
     except Exception as e:
-        print(f"Proxy ile görsel çekme hatası: {e}")
+        print(f"Görsel çekme hatası: {e}")
     return None
-
 
 
 app = FastAPI()
