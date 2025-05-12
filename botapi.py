@@ -12,25 +12,24 @@ from nlp import WORD_GROUPS
 
 def get_akakce_image(url):
     try:
-        # 📌 ScraperAPI bilgileri
-        api_key = "6685fcd9a419165b33950d243730d8c3"  # 🔑 Buraya kendi API anahtarını yaz
-        scraper_url = f"https://api.scraperapi.com?api_key={api_key}&url={url}"
+        api_key = "6bed84c4c638ccad16fac257595bf307513d45307e91eec3158ac195f83c1ee1"  # 🔑 BURAYA KENDİ API ANAHTARINI YAZ
+        scraperbox_url = f"https://api.scraperbox.com/scrape?api_key={api_key}&url={url}&render=false"
 
         headers = {'User-Agent': 'Mozilla/5.0'}
-        r = requests.get(scraper_url, headers=headers, timeout=10)
+        r = requests.get(scraperbox_url, headers=headers, timeout=10)
         soup = BeautifulSoup(r.text, 'html.parser')
 
         # Ana ürün görseli <a class="img_w"> içinde href'te
         a_tag = soup.find('a', {'class': 'img_w'})
         if a_tag and a_tag.get('href'):
             img_url = a_tag['href']
-            # Eğer link // ile başlıyorsa başına https: ekle
             if img_url.startswith('//'):
                 img_url = 'https:' + img_url
             return img_url
     except Exception as e:
         print(f"Görsel çekme hatası: {e}")
     return None
+
 
 
 
