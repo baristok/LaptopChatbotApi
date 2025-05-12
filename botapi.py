@@ -90,3 +90,8 @@ async def get_image(url: str = Query(..., description="Ürün sayfası URL'si"))
     if image_url:
         return {"image_url": image_url}
     return {"error": "Görsel bulunamadı"}
+
+@app.post("/ping")
+async def keep_alive():
+    # Basit bir yanıt döner, bu endpoint API'nin boşa düşmemesi için çağrılır.
+    return {"message": "API is alive"}
