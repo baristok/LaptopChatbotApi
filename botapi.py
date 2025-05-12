@@ -14,7 +14,7 @@ import socks
 from nlp import WORD_GROUPS
 
 # Proxy listesi dosyadan yükleniyor
-with open('Free_Proxy_List.json', 'r') as f:
+with open('./Free_Proxy_List.json', 'r') as f:
     PROXIES = json.load(f)
 
 
