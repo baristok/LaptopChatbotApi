@@ -10,47 +10,23 @@ from bs4 import BeautifulSoup
 from fastapi import Query
 from nlp import WORD_GROUPS
 
+import requests
+
 def get_akakce_image(url):
     try:
-        headers = {
-            'User-Agent': (
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                'Chrome/124.0.0.0 Safari/537.36'
-            ),
-            'Accept': (
-                'text/html,application/xhtml+xml,application/xml;'
-                'q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
-            ),
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Referer': 'https://www.google.com/',
-            'Connection': 'keep-alive',
-            'DNT': '1',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1'
-        }
+        api_url = "https://km9jvxo3il.execute-api.eu-central-1.amazonaws.com/get-image/"
+        params = {"url": url}
+        response = requests.get(api_url, params=params, timeout=10)
+        response.raise_for_status()
 
-        # Proxy yok, doğrudan URL'e istek atılıyor
-        response = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        a_tag = soup.find('a', {'class': 'img_w'})
-        if a_tag and a_tag.get('href'):
-            img_url = a_tag['href']
-            if img_url.startswith('//'):
-                img_url = 'https:' + img_url
-            return img_url
-
+        data = response.json()
+        if "image_url" in data:
+            return data["image_url"]
+        else:
+            print(f"API hata cevabı: {data.get('error')}")
     except Exception as e:
         print(f"Görsel çekme hatası: {e}")
     return None
-
-
-
 
 
 app = FastAPI()
@@ -69,7 +45,7 @@ class PromptInput(BaseModel):
 @app.post("/get-suggestions/")
 async def get_suggestions(data: PromptInput):
     try:
-        command = f'python3 cli.py --prompt "{data.prompt}"'
+        command = f'chcp 65001 > NUL & py cli.py --prompt "{data.prompt}"'
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
 
@@ -115,8 +91,3 @@ async def get_image(url: str = Query(..., description="Ürün sayfası URL'si"))
     if image_url:
         return {"image_url": image_url}
     return {"error": "Görsel bulunamadı"}
-
-@app.post("/ping")
-async def keep_alive():
-    # Basit bir yanıt döner, bu endpoint API'nin boşa düşmemesi için çağrılır.
-    return {"message": "API is alive"}
