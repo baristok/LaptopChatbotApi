@@ -4,6 +4,7 @@ from nlp import prompt_to_filters
 from filterMotor import filter_products
 import sys
 import io
+import random
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
@@ -26,13 +27,16 @@ def main():
         print(filters.get("greeting_response", "🤖 Selam dostum! Sana nasıl yardımcı olabilirim? Kullanım ihtiyacını yaz yeter 😎"))
         return
 
-    filtered_df = filter_products(df, filters)
+    # Filtrelemeyi bir kez yap
     result = filter_products(df, filters)
 
     if result.empty:
         print("No matching products found.")
         return
 
+    # İlk 30 ürünü al (eğer 30'dan az ürün varsa hepsini al)
+    top_products = result.head(30)
+    
     # Sabit gösterilecek sütunlar
     base_cols = ["Urun_Ad", "Fiyat"]
     prompt_cols = filters.get("fields", [])
@@ -43,15 +47,16 @@ def main():
     print("\n" + header)
     print("-" * len(header))
 
-    # Her ürünü yaz
-    for _, row in result.head(6).iterrows():
+    # İlk 30 ürün arasından rastgele 6 tanesini seç ve göster
+    random_selection = top_products.sample(n=min(6, len(top_products)), random_state=random.randint(1, 9999))
+    for _, row in random_selection.iterrows():
         row_data = [str(row.get(col, "N/A")).ljust(20) for col in show_cols]
         print(" | ".join(row_data))
 
     # URL'leri en altta yaz
     print("\nUrun Linkleri:")
     
-    for _, row in result.head(6).iterrows():
+    for _, row in random_selection.iterrows():
         ad = row.get("Urun_Ad", "Bilinmeyen Ürün")
         url = row.get("Urun_URL", "No URL")
         print(f"{ad}: {url}")
