@@ -1,61 +1,36 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
-from bs4 import BeautifulSoup
 import subprocess
-import json
 import os
+import json
 import requests
-import random
-import socks
-
-# NLP word kontrolü için dış dosyan varmış
+from bs4 import BeautifulSoup
+from fastapi import Query
 from nlp import WORD_GROUPS
-
-# Proxy listesi dosyadan yükleniyor
-with open('./Free_Proxy_List.json', 'r') as f:
-    PROXIES = json.load(f)
-
+import pandas as pd
 
 def get_akakce_image(url):
-    for attempt in range(5):  # En fazla 5 farklı proxy dene
-        proxy = random.choice(PROXIES)
-        proxy_ip = proxy["ip"]
-        proxy_port = proxy["port"]
-        proxy_protocol = proxy["protocols"][0]
-
-        # SOCKS protokolüne göre formatla
-        proxy_url = f"socks{proxy_protocol[-1]}://{proxy_ip}:{proxy_port}"
-
-        proxies = {
-            "http": proxy_url,
-            "https": proxy_url
-        }
-
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-        }
-
-        try:
-            r = requests.get(url, headers=headers, proxies=proxies, timeout=10)
-            soup = BeautifulSoup(r.text, 'html.parser')
-            a_tag = soup.find('a', {'class': 'img_w'})
-            if a_tag and a_tag.get('href'):
-                img_url = a_tag['href']
-                if img_url.startswith('//'):
-                    img_url = 'https:' + img_url
-                return img_url
-        except Exception as e:
-            print(f"[{attempt + 1}. deneme] Proxy {proxy_ip}:{proxy_port} hatası: {e}")
-            continue  # Başarısız olursa bir sonraki proxy ile dene
-
-    return None  # Tüm denemeler başarısız olursa
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        r = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        # Ana ürün görseli <a class="img_w"> içinde href'te
+        a_tag = soup.find('a', {'class': 'img_w'})
+        if a_tag and a_tag.get('href'):
+            img_url = a_tag['href']
+            # Eğer link // ile başlıyorsa başına https: ekle
+            if img_url.startswith('//'):
+                img_url = 'https:' + img_url
+            return img_url
+    except Exception as e:
+        print(f"Görsel çekme hatası: {e}")
+    return None
 
 
 app = FastAPI()
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -70,7 +45,7 @@ class PromptInput(BaseModel):
 @app.post("/get-suggestions/")
 async def get_suggestions(data: PromptInput):
     try:
-        command = f'python3 cli.py --prompt "{data.prompt}"'
+        command = f'chcp 65001 > NUL & py cli.py --prompt "{data.prompt}"'
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
 
@@ -90,12 +65,14 @@ async def get_suggestions(data: PromptInput):
             error_json = json.dumps({"hata": stderr or "Komut hatası"}, ensure_ascii=False)
             return Response(content=error_json, media_type="application/json")
 
-        # Kelime grupları kontrolü
-        should_ask_brand = any(
-            any(word in data.prompt.lower() for word in group)
-            for group in WORD_GROUPS.values()
-        )
+        # Kelime gruplarından herhangi biri geçiyor mu kontrol et
+        should_ask_brand = False
+        for words in WORD_GROUPS.values():
+            if any(word in data.prompt.lower() for word in words):
+                should_ask_brand = True
+                break
 
+        # 🎯 Türkçe karakterleri kaçırmadan encode et
         json_data = json.dumps({
             "cevap": stdout or "Bot bir yanıt üretemedi.",
             "recommendations": [],
@@ -108,13 +85,77 @@ async def get_suggestions(data: PromptInput):
         error_json = json.dumps({"hata": str(e)}, ensure_ascii=False)
         return Response(content=error_json, media_type="application/json")
 
+# CSV dosyalarını bir kere yükle
+laptop_df = pd.read_csv("latent_vektorlu_laptoplar.csv")
+tam_veri_df = pd.read_csv("tamveriseti.csv")
+
+def normalize_url(url):
+    """URL'yi normalize eder, http:// veya https:// farkını giderir ve önemli kısmı korur"""
+    # URL'den http/https protokolünü çıkar
+    if "://" in url:
+        url = url.split("://")[1]
+    elif "//" in url and not url.startswith("//"):
+        url = url.split("//")[1]
+    
+    # Ürün ID kısmını al (genellikle son kısım)
+    if "fiyati," in url:
+        product_id = url.split("fiyati,")[-1].split(".html")[0]
+        return product_id
+    
+    return url
 
 @app.get("/get-image/")
 async def get_image(url: str = Query(..., description="Ürün sayfası URL'si")):
-    image_url = get_akakce_image(url)
-    if image_url:
-        return {"image_url": image_url}
-    return {"error": "Görsel bulunamadı"}
+    try:
+        # URL'yi normalize et
+        normalized_url = normalize_url(url)
+        image_url = None
+        
+        # İlk olarak latent_vektorlu_laptoplar.csv'de ara
+        found_in_latent = find_image_in_csv(laptop_df, url, normalized_url)
+        if found_in_latent:
+            print(f"Görsel latent_vektorlu_laptoplar.csv'den bulundu: {url}")
+            return {"image_url": found_in_latent, "source": "latent_csv"}
+            
+        # Bulunamazsa tamveriseti.csv'de ara
+        found_in_tam = find_image_in_csv(tam_veri_df, url, normalized_url)
+        if found_in_tam:
+            print(f"Görsel tamveriseti.csv'den bulundu: {url}")
+            return {"image_url": found_in_tam, "source": "tam_csv"}
+        
+        # CSV'lerde bulunamazsa web'den al
+        print(f"Görsel CSV'lerde bulunamadı, web'den alınıyor: {url}")
+        fallback_image_url = get_akakce_image(url)
+        if fallback_image_url:
+            print(f"Görsel web'den alındı: {url}")
+            return {"image_url": fallback_image_url, "source": "web"}
+            
+        print(f"Görsel hiçbir yerden bulunamadı: {url}")
+        return {"error": "Görsel bulunamadı", "source": "none"}
+    except Exception as e:
+        print(f"Görsel çekme hatası: {e}")
+        return {"error": f"Görsel çekilirken hata oluştu: {str(e)}", "source": "error"}
+
+def find_image_in_csv(df, original_url, normalized_url):
+    """Verilen DataFrame'de görsel URL'sini bulmak için kullanılır"""
+    # Tam URL eşleşmesi dene
+    laptop_row = df[df['Urun_URL'] == original_url]
+    
+    # Eğer bulunamazsa, normalize edilmiş URL'yi içeren satırları ara
+    if laptop_row.empty:
+        # CSV'deki her URL'yi normalize et ve karşılaştır
+        df['normalized_url'] = df['Urun_URL'].apply(normalize_url)
+        laptop_row = df[df['normalized_url'] == normalized_url]
+        # Geçici sütunu temizle
+        if 'normalized_url' in df.columns:
+            df.drop('normalized_url', axis=1, inplace=True)
+    
+    if not laptop_row.empty and 'Gorsel_URL' in df.columns:
+        image_url = laptop_row.iloc[0]['Gorsel_URL']
+        if image_url and str(image_url) != 'nan':
+            return image_url
+    
+    return None
 
 @app.post("/ping")
 async def keep_alive():
