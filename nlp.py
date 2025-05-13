@@ -88,6 +88,7 @@ def prompt_to_filters(prompt, df):
     greetings = {
         'selam': 'Selam dostum! Sana nasıl yardımcı olabilirim? 😊',
         'merhaba': 'Merhaba! Bugün sana nasıl yardımcı olabilirim? 🤗',
+        'teşekkür': 'Rica ederim! Umarım yardımcı olabilmişimdir? 🤗',
         'naber': 'İyidir dostum, sen nasılsın? Sana nasıl yardımcı olabilirim? 😎',
         'ne haber': 'İyilik! Sen nasılsın? Sana nasıl bir laptop önerebilirim? 🤔',
         'hey': 'Hey! Nasıl gidiyor? Sana nasıl yardımcı olabilirim? 😊',
